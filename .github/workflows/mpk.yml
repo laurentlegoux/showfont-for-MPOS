@@ -1,0 +1,30 @@
+name: Build MPK  
+on:  
+  push:  
+    tags: ["v*"]  
+  workflow_dispatch:  
+  
+jobs:  
+  mpk:  
+    runs-on: ubuntu-latest  
+    steps:  
+      - uses: actions/checkout@v4  
+      - name: Build MPK  
+        run: |  
+          appdir=$(jq -r '.fullname' MANIFEST.JSON)  
+          version=$(jq -r '.version' MANIFEST.JSON)  
+          mpk="${appdir}_${version}.mpk"  
+          find . -exec touch -t 202501010000.00 {} \;  
+          tmp=$(mktemp -d); cp -r . "$tmp/$appdir"  
+          (cd "$tmp" && (find -L "$appdir" -type d; find -L "$appdir" -type f) \  
+             | grep -v '.git/' | sort | TZ=CET zip -X -r0 "$GITHUB_WORKSPACE/$mpk" -@)  
+          echo "MPK=$mpk" >> "$GITHUB_ENV"  
+      - uses: actions/upload-artifact@v4  
+        with:  
+          name: mpk  
+          path: "*.mpk"  
+      - name: Release  
+        if: startsWith(github.ref, 'refs/tags/')  
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  
+        with:  
+          files: "*.mpk"
