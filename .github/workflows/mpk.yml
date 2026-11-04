@@ -7,17 +7,31 @@ on:
 jobs:  
   mpk:  
     runs-on: ubuntu-latest  
+    permissions:  
+      contents: write          # needed by action-gh-release  
     steps:  
       - uses: actions/checkout@v4  
       - name: Build MPK  
         run: |  
-          appdir=$(jq -r '.fullname' MANIFEST.JSON)  
-          version=$(jq -r '.version' MANIFEST.JSON)  
+          set -eux  
+          if [ -f MANIFEST.JSON ]; then  
+            manifest=MANIFEST.JSON  
+          elif [ -f META-INF/MANIFEST.JSON ]; then  
+            manifest=META-INF/MANIFEST.JSON  
+          else  
+            echo "No MANIFEST.JSON found at repo root"; ls -la; exit 1  
+          fi  
+          appdir=$(jq -r '.fullname' "$manifest")  
+          version=$(jq -r '.version' "$manifest")  
           mpk="${appdir}_${version}.mpk"  
-          find . -exec touch -t 202501010000.00 {} \;  
-          tmp=$(mktemp -d); cp -r . "$tmp/$appdir"  
+          tmp=$(mktemp -d)  
+          mkdir -p "$tmp/$appdir"  
+          cp -r . "$tmp/$appdir"  
+          rm -rf "$tmp/$appdir/.git" "$tmp/$appdir/.github"  
+          find "$tmp/$appdir" -exec touch -t 202501010000.00 {} \;  
           (cd "$tmp" && (find -L "$appdir" -type d; find -L "$appdir" -type f) \  
-             | grep -v '.git/' | sort | TZ=CET zip -X -r0 "$GITHUB_WORKSPACE/$mpk" -@)  
+             | sort | TZ=CET zip -X -r0 "$GITHUB_WORKSPACE/$mpk" -@)  
+          echo "== verify =="; unzip -l "$mpk" | head -5  
           echo "MPK=$mpk" >> "$GITHUB_ENV"  
       - uses: actions/upload-artifact@v4  
         with:  
@@ -25,6 +39,6 @@ jobs:
           path: "*.mpk"  
       - name: Release  
         if: startsWith(github.ref, 'refs/tags/')  
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2  
         with:  
           files: "*.mpk"
