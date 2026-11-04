@@ -29,8 +29,7 @@ jobs:
           cp -r . "$tmp/$appdir"  
           rm -rf "$tmp/$appdir/.git" "$tmp/$appdir/.github"  
           find "$tmp/$appdir" -exec touch -t 202501010000.00 {} \;  
-          (cd "$tmp" && (find -L "$appdir" -type d; find -L "$appdir" -type f) \  
-             | sort | TZ=CET zip -X -r0 "$GITHUB_WORKSPACE/$mpk" -@)  
+          (cd "$tmp" && (find -L "$appdir" -type d; find -L "$appdir" -type f) | grep -v '.git/' | sort | TZ=CET zip -X -r0 "$GITHUB_WORKSPACE/$mpk" -@)  
           echo "== verify =="; unzip -l "$mpk" | head -5  
           echo "MPK=$mpk" >> "$GITHUB_ENV"  
       - uses: actions/upload-artifact@v4  
